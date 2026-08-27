@@ -1,4 +1,4 @@
-package com.fabricio.payments_service;
+package com.fabricio.payments;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
