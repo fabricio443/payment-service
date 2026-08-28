@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:payments}
     username: ${DB_USERNAME:payments}
-    password: ${DB_PASSWORD:}
+    password: ${DB_PASSWORD:change-me-for-local-development}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
