@@ -1,0 +1,10 @@
+CREATE TABLE payments (
+    id UUID PRIMARY KEY,
+    customer_id VARCHAR(255) NOT NULL,
+    amount NUMERIC(15, 2) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_payments_customer_id ON payments (customer_id);

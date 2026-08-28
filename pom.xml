@@ -50,6 +50,17 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Migrations do schema PostgreSQL com auto-configuração do Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <!-- Suporte PostgreSQL para Flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
         <!-- Banco embarcado apenas para o teste de contexto -->
         <dependency>
             <groupId>com.h2database</groupId>
