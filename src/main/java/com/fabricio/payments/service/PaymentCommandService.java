@@ -17,22 +17,32 @@ public class PaymentCommandService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
+    private final IdempotencyService idempotencyService;
 
-    public PaymentCommandService(PaymentRepository paymentRepository, PaymentMapper paymentMapper) {
+    public PaymentCommandService(PaymentRepository paymentRepository, PaymentMapper paymentMapper,
+            IdempotencyService idempotencyService) {
         this.paymentRepository = paymentRepository;
         this.paymentMapper = paymentMapper;
+        this.idempotencyService = idempotencyService;
     }
 
     @Transactional
     public PaymentResponse createPayment(CreatePaymentRequest request) {
-        Payment payment = new Payment(
-                UUID.randomUUID(),
-                request.customerId(),
-                request.amount(),
-                PaymentStatus.PENDING
-        );
+        return createPayment(request, UUID.randomUUID().toString());
+    }
 
-        Payment savedPayment = paymentRepository.save(payment);
-        return paymentMapper.toResponse(savedPayment);
+    @Transactional
+    public PaymentResponse createPayment(CreatePaymentRequest request, String idempotencyKey) {
+        return idempotencyService.getOrCreate(idempotencyKey, () -> {
+            Payment payment = new Payment(
+                    UUID.randomUUID(),
+                    request.customerId(),
+                    request.amount(),
+                    PaymentStatus.PENDING
+            );
+
+            Payment savedPayment = paymentRepository.saveAndFlush(payment);
+            return paymentMapper.toResponse(savedPayment);
+        });
     }
 }
