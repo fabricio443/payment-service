@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fabricio.payments.domain.Payment;
 import com.fabricio.payments.domain.PaymentStatus;
+import com.fabricio.payments.domain.event.PaymentEventType;
 import com.fabricio.payments.dto.CreatePaymentRequest;
 import com.fabricio.payments.dto.PaymentMapper;
 import com.fabricio.payments.dto.PaymentResponse;
@@ -18,12 +19,14 @@ public class PaymentCommandService {
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
     private final IdempotencyService idempotencyService;
+    private final PaymentEventService paymentEventService;
 
     public PaymentCommandService(PaymentRepository paymentRepository, PaymentMapper paymentMapper,
-            IdempotencyService idempotencyService) {
+            IdempotencyService idempotencyService, PaymentEventService paymentEventService) {
         this.paymentRepository = paymentRepository;
         this.paymentMapper = paymentMapper;
         this.idempotencyService = idempotencyService;
+        this.paymentEventService = paymentEventService;
     }
 
     @Transactional
@@ -42,6 +45,11 @@ public class PaymentCommandService {
             );
 
             Payment savedPayment = paymentRepository.saveAndFlush(payment);
+            paymentEventService.recordAndPublish(
+                    savedPayment.getId(),
+                    PaymentEventType.PAYMENT_CREATED,
+                    String.format("{\"customerId\":\"%s\",\"amount\":%s}", request.customerId(), request.amount())
+            );
             return paymentMapper.toResponse(savedPayment);
         });
     }
