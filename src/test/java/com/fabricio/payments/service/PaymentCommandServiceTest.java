@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.fabricio.payments.domain.Payment;
 import com.fabricio.payments.domain.PaymentStatus;
+import com.fabricio.payments.domain.event.PaymentEventType;
 import com.fabricio.payments.dto.CreatePaymentRequest;
 import com.fabricio.payments.dto.PaymentMapper;
 import com.fabricio.payments.dto.PaymentResponse;
@@ -34,6 +35,9 @@ class PaymentCommandServiceTest {
     @Mock
     private IdempotencyService idempotencyService;
 
+    @Mock
+    private PaymentEventService paymentEventService;
+
     @InjectMocks
     private PaymentCommandService paymentCommandService;
 
@@ -44,7 +48,12 @@ class PaymentCommandServiceTest {
         Payment payment = new Payment(UUID.randomUUID(), "customer-123", new BigDecimal("50.00"), PaymentStatus.PENDING);
         PaymentResponse response = new PaymentResponse(payment.getId(), "customer-123", new BigDecimal("50.00"), PaymentStatus.PENDING, payment.getCreatedAt());
 
-        when(idempotencyService.getOrCreate(eq(idempotencyKey), any())).thenReturn(response);
+        when(idempotencyService.getOrCreate(eq(idempotencyKey), any())).thenAnswer(invocation -> {
+            java.util.function.Supplier<PaymentResponse> supplier = invocation.getArgument(1);
+            return supplier.get();
+        });
+        when(paymentRepository.saveAndFlush(any(Payment.class))).thenReturn(payment);
+        when(paymentMapper.toResponse(payment)).thenReturn(response);
 
         PaymentResponse result = paymentCommandService.createPayment(request, idempotencyKey);
 
@@ -52,5 +61,6 @@ class PaymentCommandServiceTest {
         assertEquals(PaymentStatus.PENDING, result.status());
         assertEquals("customer-123", result.customerId());
         verify(idempotencyService).getOrCreate(eq(idempotencyKey), any());
+        verify(paymentEventService).recordAndPublish(eq(payment.getId()), eq(PaymentEventType.PAYMENT_CREATED), any());
     }
 }
