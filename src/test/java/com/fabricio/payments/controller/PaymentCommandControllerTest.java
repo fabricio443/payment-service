@@ -1,8 +1,17 @@
 package com.fabricio.payments.controller;
 
+import java.math.BigDecimal;
+import java.util.UUID;
+
 import static org.hamcrest.Matchers.is;
+import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -12,14 +21,6 @@ import com.fabricio.payments.domain.PaymentStatus;
 import com.fabricio.payments.dto.CreatePaymentRequest;
 import com.fabricio.payments.dto.PaymentResponse;
 import com.fabricio.payments.service.PaymentCommandService;
-import java.math.BigDecimal;
-import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(PaymentCommandController.class)
 class PaymentCommandControllerTest {
