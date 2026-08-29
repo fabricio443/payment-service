@@ -5,6 +5,7 @@ import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,8 +26,10 @@ public class PaymentCommandController {
     }
 
     @PostMapping
-    public ResponseEntity<PaymentResponse> create(@Valid @RequestBody CreatePaymentRequest request) {
-        PaymentResponse response = paymentCommandService.createPayment(request);
+    public ResponseEntity<PaymentResponse> create(
+            @Valid @RequestBody CreatePaymentRequest request,
+            @RequestHeader("Idempotency-Key") String idempotencyKey) {
+        PaymentResponse response = paymentCommandService.createPayment(request, idempotencyKey);
         return ResponseEntity.created(URI.create("/payments/" + response.id())).body(response);
     }
 }

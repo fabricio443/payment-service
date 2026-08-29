@@ -2,6 +2,7 @@ package com.fabricio.payments.controller;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -35,9 +36,10 @@ class PaymentCommandControllerTest {
         UUID paymentId = UUID.randomUUID();
         PaymentResponse response = new PaymentResponse(paymentId, "customer-123", new BigDecimal("55.00"), PaymentStatus.PENDING, null);
 
-        when(paymentCommandService.createPayment(any(CreatePaymentRequest.class))).thenReturn(response);
+        when(paymentCommandService.createPayment(any(CreatePaymentRequest.class), eq("payment-key-123"))).thenReturn(response);
 
         mockMvc.perform(post("/payments")
+                        .header("Idempotency-Key", "payment-key-123")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"customerId\":\"customer-123\",\"amount\":55.00}"))
                 .andExpect(status().isCreated())

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.verify;
@@ -30,23 +31,26 @@ class PaymentCommandServiceTest {
     @Mock
     private PaymentMapper paymentMapper;
 
+    @Mock
+    private IdempotencyService idempotencyService;
+
     @InjectMocks
     private PaymentCommandService paymentCommandService;
 
     @Test
     void shouldCreatePaymentWithPendingStatusAndPersistIt() {
         CreatePaymentRequest request = new CreatePaymentRequest("customer-123", new BigDecimal("50.00"));
+        String idempotencyKey = "payment-key-123";
         Payment payment = new Payment(UUID.randomUUID(), "customer-123", new BigDecimal("50.00"), PaymentStatus.PENDING);
         PaymentResponse response = new PaymentResponse(payment.getId(), "customer-123", new BigDecimal("50.00"), PaymentStatus.PENDING, payment.getCreatedAt());
 
-        when(paymentRepository.save(any(Payment.class))).thenReturn(payment);
-        when(paymentMapper.toResponse(payment)).thenReturn(response);
+        when(idempotencyService.getOrCreate(eq(idempotencyKey), any())).thenReturn(response);
 
-        PaymentResponse result = paymentCommandService.createPayment(request);
+        PaymentResponse result = paymentCommandService.createPayment(request, idempotencyKey);
 
         assertNotNull(result);
         assertEquals(PaymentStatus.PENDING, result.status());
         assertEquals("customer-123", result.customerId());
-        verify(paymentRepository).save(any(Payment.class));
+        verify(idempotencyService).getOrCreate(eq(idempotencyKey), any());
     }
 }
