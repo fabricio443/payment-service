@@ -1,9 +1,10 @@
 package com.fabricio.payments.dto;
 
-import com.fabricio.payments.domain.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+
+import com.fabricio.payments.domain.PaymentStatus;
 
 public record PaymentResponse(
         UUID id,

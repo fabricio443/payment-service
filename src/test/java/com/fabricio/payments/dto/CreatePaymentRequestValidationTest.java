@@ -1,13 +1,14 @@
 package com.fabricio.payments.dto;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import jakarta.validation.Validation;
-import jakarta.validation.Validator;
 import java.math.BigDecimal;
 import java.util.Set;
-import jakarta.validation.ConstraintViolation;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 
 class CreatePaymentRequestValidationTest {
 

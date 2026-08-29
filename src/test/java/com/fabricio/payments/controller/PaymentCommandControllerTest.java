@@ -12,15 +12,13 @@ import com.fabricio.payments.domain.PaymentStatus;
 import com.fabricio.payments.dto.CreatePaymentRequest;
 import com.fabricio.payments.dto.PaymentResponse;
 import com.fabricio.payments.service.PaymentCommandService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(PaymentCommandController.class)
@@ -29,10 +27,7 @@ class PaymentCommandControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @MockitoBean
     private PaymentCommandService paymentCommandService;
 
     @Test
@@ -42,11 +37,9 @@ class PaymentCommandControllerTest {
 
         when(paymentCommandService.createPayment(any(CreatePaymentRequest.class))).thenReturn(response);
 
-        CreatePaymentRequest request = new CreatePaymentRequest("customer-123", new BigDecimal("55.00"));
-
         mockMvc.perform(post("/payments")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content("{\"customerId\":\"customer-123\",\"amount\":55.00}"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/payments/" + paymentId))
                 .andExpect(jsonPath("$.customerId", is("customer-123")))

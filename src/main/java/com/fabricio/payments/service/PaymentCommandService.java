@@ -1,14 +1,16 @@
 package com.fabricio.payments.service;
 
+import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.fabricio.payments.domain.Payment;
 import com.fabricio.payments.domain.PaymentStatus;
 import com.fabricio.payments.dto.CreatePaymentRequest;
 import com.fabricio.payments.dto.PaymentMapper;
 import com.fabricio.payments.dto.PaymentResponse;
 import com.fabricio.payments.repository.PaymentRepository;
-import java.util.UUID;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PaymentCommandService {

@@ -1,14 +1,15 @@
 package com.fabricio.payments.dto;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import com.fabricio.payments.domain.Payment;
-import com.fabricio.payments.domain.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.junit.jupiter.api.Test;
+
+import com.fabricio.payments.domain.Payment;
+import com.fabricio.payments.domain.PaymentStatus;
 
 class PaymentMapperTest {
 

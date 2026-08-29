@@ -1,7 +1,8 @@
 package com.fabricio.payments.dto;
 
-import com.fabricio.payments.domain.Payment;
 import org.springframework.stereotype.Component;
+
+import com.fabricio.payments.domain.Payment;
 
 @Component
 public class PaymentMapper {
