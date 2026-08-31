@@ -9,18 +9,14 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
-import javax.sql.DataSource;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.PageRequest;
 
 import com.fabricio.payments.config.AbstractIntegrationTest;
-import com.fabricio.payments.diagnostic.DiagnosticRegistry;
 import com.fabricio.payments.domain.Payment;
 import com.fabricio.payments.domain.PaymentStatus;
 import com.fabricio.payments.repository.PaymentRepository;
@@ -33,26 +29,8 @@ class PaymentIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private PaymentRepository paymentRepository;
 
-    @Autowired
-    private ApplicationContext context;
-
-    @Autowired
-    private DataSource dataSource;
-
     @Test
     void shouldCreatePaymentAndReadItBack() throws Exception {
-        // DIAGNOSTIC: Capture context and datasource details at test start
-        System.out.println("\n[DIAGNOSTIC] === PaymentIntegrationTest START ===");
-        System.out.println("[DIAGNOSTIC] ApplicationContext identity hash: " + System.identityHashCode(context));
-        System.out.println("[DIAGNOSTIC] ApplicationContext ID: " + context.getId());
-        System.out.println("[DIAGNOSTIC] DataSource identity hash: " + System.identityHashCode(dataSource));
-        System.out.println("[DIAGNOSTIC] POSTGRES identity hash: " + System.identityHashCode(POSTGRES));
-        System.out.println("[DIAGNOSTIC] POSTGRES is running: " + POSTGRES.isRunning());
-        System.out.println("[DIAGNOSTIC] POSTGRES JDBC URL: " + POSTGRES.getJdbcUrl());
-        System.out.println("[DIAGNOSTIC] POSTGRES container ID: " + POSTGRES.getContainerId());
-        System.out.println();
-        
-        DiagnosticRegistry.getInstance().recordContextCreation("PaymentIntegrationTest", context, dataSource);
         String customerId = "customer-integration-1";
         BigDecimal amount = new BigDecimal("75.00");
         String idempotencyKey = "payment-integration-key-1";
