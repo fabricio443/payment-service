@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fabricio.payments.domain.PaymentStatus;
 import com.fabricio.payments.dto.CreatePaymentRequest;
 import com.fabricio.payments.dto.PaymentResponse;
-import com.fabricio.payments.service.PaymentCommandService;
+import com.fabricio.payments.application.command.PaymentCommandService;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

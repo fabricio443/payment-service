@@ -26,8 +26,8 @@ import com.fabricio.payments.controller.PaymentCommandController;
 import com.fabricio.payments.controller.PaymentQueryController;
 import com.fabricio.payments.dto.CreatePaymentRequest;
 import com.fabricio.payments.dto.PaymentResponse;
-import com.fabricio.payments.service.PaymentCommandService;
-import com.fabricio.payments.service.PaymentQueryService;
+import com.fabricio.payments.application.command.PaymentCommandService;
+import com.fabricio.payments.application.query.PaymentQueryService;
 
 @WebMvcTest(controllers = {PaymentQueryController.class, PaymentCommandController.class})
 @Import(GlobalExceptionHandler.class)
