@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: payments-service
+  threads:
+    virtual:
+      enabled: true
+  jackson:
+    time-zone: UTC
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+server:
+  port: 8080

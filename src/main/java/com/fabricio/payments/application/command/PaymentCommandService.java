@@ -1,0 +1,58 @@
+package com.fabricio.payments.application.command;
+
+import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fabricio.payments.domain.Payment;
+import com.fabricio.payments.domain.PaymentStatus;
+import com.fabricio.payments.domain.event.PaymentEventType;
+import com.fabricio.payments.dto.CreatePaymentRequest;
+import com.fabricio.payments.dto.PaymentMapper;
+import com.fabricio.payments.dto.PaymentResponse;
+import com.fabricio.payments.repository.PaymentRepository;
+import com.fabricio.payments.service.IdempotencyService;
+import com.fabricio.payments.service.PaymentEventService;
+
+@Service
+public class PaymentCommandService {
+
+    private final PaymentRepository paymentRepository;
+    private final PaymentMapper paymentMapper;
+    private final IdempotencyService idempotencyService;
+    private final PaymentEventService paymentEventService;
+
+    public PaymentCommandService(PaymentRepository paymentRepository, PaymentMapper paymentMapper,
+            IdempotencyService idempotencyService, PaymentEventService paymentEventService) {
+        this.paymentRepository = paymentRepository;
+        this.paymentMapper = paymentMapper;
+        this.idempotencyService = idempotencyService;
+        this.paymentEventService = paymentEventService;
+    }
+
+    @Transactional
+    public PaymentResponse createPayment(CreatePaymentRequest request) {
+        return createPayment(request, UUID.randomUUID().toString());
+    }
+
+    @Transactional
+    public PaymentResponse createPayment(CreatePaymentRequest request, String idempotencyKey) {
+        return idempotencyService.getOrCreate(idempotencyKey, () -> {
+            Payment payment = new Payment(
+                    UUID.randomUUID(),
+                    request.customerId(),
+                    request.amount(),
+                    PaymentStatus.PENDING
+            );
+
+            Payment savedPayment = paymentRepository.saveAndFlush(payment);
+            paymentEventService.recordAndPublish(
+                    savedPayment.getId(),
+                    PaymentEventType.PAYMENT_CREATED,
+                    String.format("{\"customerId\":\"%s\",\"amount\":%s}", request.customerId(), request.amount())
+            );
+            return paymentMapper.toResponse(savedPayment);
+        });
+    }
+}
