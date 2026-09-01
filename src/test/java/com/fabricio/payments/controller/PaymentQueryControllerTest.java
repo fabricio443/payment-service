@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fabricio.payments.domain.PaymentStatus;
 import com.fabricio.payments.dto.PaymentResponse;
 import com.fabricio.payments.exception.ResourceNotFoundException;
-import com.fabricio.payments.service.PaymentQueryService;
+import com.fabricio.payments.application.query.PaymentQueryService;
 
 @WebMvcTest(PaymentQueryController.class)
 class PaymentQueryControllerTest {

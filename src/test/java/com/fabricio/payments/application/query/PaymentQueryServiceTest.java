@@ -1,4 +1,4 @@
-package com.fabricio.payments.service;
+package com.fabricio.payments.application.query;
 
 import java.math.BigDecimal;
 import java.util.List;

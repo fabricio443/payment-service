@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fabricio.payments.dto.CreatePaymentRequest;
 import com.fabricio.payments.dto.PaymentResponse;
-import com.fabricio.payments.service.PaymentCommandService;
+import com.fabricio.payments.application.command.PaymentCommandService;
 
 import jakarta.validation.Valid;
 

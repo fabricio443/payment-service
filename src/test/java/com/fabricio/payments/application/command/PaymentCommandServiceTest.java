@@ -1,4 +1,4 @@
-package com.fabricio.payments.service;
+package com.fabricio.payments.application.command;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -22,6 +22,8 @@ import com.fabricio.payments.dto.CreatePaymentRequest;
 import com.fabricio.payments.dto.PaymentMapper;
 import com.fabricio.payments.dto.PaymentResponse;
 import com.fabricio.payments.repository.PaymentRepository;
+import com.fabricio.payments.service.IdempotencyService;
+import com.fabricio.payments.service.PaymentEventService;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCommandServiceTest {
