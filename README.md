@@ -1,40 +1,235 @@
 # Payment Service
 
-Serviço REST para criação e consulta de pagamentos em Java, com foco em idempotência, concorrência e processamento assíncrono. O núcleo do desafio está implementado e validado com PostgreSQL, Flyway e testes automatizados.
+API REST para criação e consulta de pagamentos, desenvolvida com Java 21 e Spring Boot, com foco em idempotência, concorrência, consistência transacional e processamento assíncrono.
+
+O projeto utiliza PostgreSQL como banco principal, Flyway para versionamento do schema e Testcontainers para testes de integração com PostgreSQL real.
+
+## Objetivos técnicos
+
+O projeto foi desenvolvido para demonstrar, de forma prática:
+
+- criação e consulta de pagamentos por API REST;
+- idempotência baseada em `Idempotency-Key`;
+- proteção contra race conditions em requisições concorrentes;
+- transações e controle de isolamento no PostgreSQL;
+- persistência e publicação de eventos internos;
+- processamento assíncrono após o commit da transação;
+- uso de Virtual Threads;
+- separação entre operações de comando e consulta;
+- testes unitários, de integração e de concorrência.
 
 ## Stack
 
 - Java 21
 - Spring Boot 4.1.1
-- Spring Web
+- Spring Web MVC
 - Spring Data JPA / Hibernate
-- PostgreSQL
+- PostgreSQL 16
 - Flyway
-- Docker Compose
+- Docker / Docker Compose
 - Maven
-- JUnit 5 / Testcontainers
+- JUnit 5
+- Mockito
+- Testcontainers
+- Awaitility
 
 ## Arquitetura
 
+A aplicação organiza o fluxo principal entre controllers, camada de aplicação, serviços especializados, repositórios, domínio e eventos.
+
 ```text
-src/main/java/com/fabricio/payments
-├── controller
-├── service
-├── repository
-├── domain
-├── dto
-├── event
-├── exception
-├── config
-├── application
-└── resources
+HTTP
+ │
+ ▼
+Controllers
+ │
+ ├───────────────┐
+ ▼               ▼
+Command          Query
+Application      Application
+ │               │
+ ▼               ▼
+Serviços         Repository
+especializados      │
+ │                  ▼
+ ▼              PostgreSQL
+Repository
+ │
+ ▼
+PostgreSQL
+ │
+ ▼
+Eventos
+ │
+ ▼
+AFTER_COMMIT
+ │
+ ▼
+Listener assíncrono
+ │
+ ▼
+PaymentProcessorService
+ │
+ ▼
+APPROVED / REJECTED
 ```
 
-A aplicação mantém separação entre comando e consulta: `controller` expõe a API, `service` concentra a lógica de negócio e `repository` acessa os dados. A estrutura em `application/command` e `application/query` existe, mas o fluxo real em execução usa os serviços ativos em `service/`.
+### Command e Query
+
+A separação entre comando e consulta está implementada na camada `application`:
+
+- `application/command/PaymentCommandService`: cria pagamentos, coordena a idempotência e registra/publica o evento de criação.
+- `application/query/PaymentQueryService`: realiza consultas por ID e por cliente, incluindo paginação.
+
+Essa separação é uma organização lógica de Command/Query. O projeto não implementa CQRS completo com bancos ou modelos de leitura separados.
+
+### Serviços especializados
+
+O pacote `service` contém responsabilidades específicas utilizadas pela camada de aplicação, entre elas:
+
+- `IdempotencyService`: controla a criação/reutilização da operação associada à `Idempotency-Key`.
+- `PaymentEventService`: registra eventos no banco e publica eventos internos.
+- `PaymentProcessorService`: executa o processamento do pagamento e atualiza seu status.
+
+O pacote `infrastructure` contém atualmente a abstração `PaymentProcessor`; ele não representa uma camada de infraestrutura extensa ou um broker externo implementado.
+
+## Estrutura principal
+
+```text
+src/main/java/com/fabricio/payments
+├── application
+│   ├── command
+│   │   └── PaymentCommandService.java
+│   └── query
+│       └── PaymentQueryService.java
+├── config
+│   └── AsyncConfig.java
+├── controller
+│   ├── PaymentCommandController.java
+│   └── PaymentQueryController.java
+├── domain
+│   ├── IdempotencyKey.java
+│   ├── Payment.java
+│   ├── PaymentStatus.java
+│   └── event
+├── dto
+│   ├── CreatePaymentRequest.java
+│   ├── PaymentMapper.java
+│   └── PaymentResponse.java
+├── event
+│   ├── PaymentDomainEvent.java
+│   └── listener
+├── exception
+├── infrastructure
+│   └── PaymentProcessor.java
+├── repository
+└── service
+```
+
+## Fluxo de criação de pagamento
+
+O fluxo principal de `POST /payments` é:
+
+```text
+POST /payments
+      │
+      ▼
+PaymentCommandController
+      │
+      ▼
+PaymentCommandService
+      │
+      ▼
+IdempotencyService
+      │
+      ├── chave nova ──► cria Payment PENDING
+      │                       │
+      │                       ▼
+      │                PaymentEventService
+      │                       │
+      │                       ▼
+      │                 commit da transação
+      │                       │
+      │                       ▼
+      │              PaymentEventListener
+      │                       │
+      │                       ▼
+      │                processamento async
+      │                       │
+      │                       ▼
+      │               APPROVED / REJECTED
+      │
+      └── chave existente ──► reutiliza o resultado registrado
+```
+
+O controller retorna `201 Created` após a criação bem-sucedida do pagamento.
+
+## Idempotência e concorrência
+
+A API exige o header `Idempotency-Key` no endpoint de criação.
+
+A proteção contra duplicidade é coordenada pelo PostgreSQL, e não por estruturas de sincronização em memória.
+
+O mecanismo utiliza:
+
+- `idempotency_key` como chave primária na tabela `idempotency_keys`;
+- `INSERT ... ON CONFLICT DO NOTHING` para disputar atomicamente o registro da chave;
+- transação com isolamento `SERIALIZABLE` no fluxo de idempotência;
+- lock pessimista (`PESSIMISTIC_WRITE`) nos pontos críticos de leitura da chave;
+- persistência do `response_body`, `status_code` e `payment_id` para reutilização do resultado da operação.
+
+Isso permite que múltiplas requisições concorrentes com a mesma chave disputem o mesmo registro no banco, evitando a criação de múltiplos pagamentos para a mesma operação.
+
+### Teste de concorrência
+
+`ConcurrentPaymentCreationTest` cobre o cenário de 100 requisições concorrentes usando a mesma `Idempotency-Key`.
+
+O teste verifica principalmente:
+
+- ausência de respostas HTTP `500`;
+- existência de apenas um pagamento persistido;
+- existência de um único registro de idempotência;
+- associação da chave ao pagamento criado.
+
+O teste é executado como teste de integração e utiliza PostgreSQL fornecido pelo Testcontainers.
+
+## Processamento assíncrono e eventos
+
+O pagamento é criado inicialmente com status `PENDING`.
+
+O evento de criação é persistido em `payment_events` e publicado como evento interno. O processamento posterior ocorre somente após o commit da transação:
+
+```text
+Transação
+   │
+   ├── Payment
+   └── PaymentEvent
+        │
+        ▼
+     COMMIT
+        │
+        ▼
+AFTER_COMMIT listener
+        │
+        ▼
+@Async("paymentTaskExecutor")
+        │
+        ▼
+PaymentProcessorService
+        │
+        ├── APPROVED
+        └── REJECTED
+```
+
+O executor assíncrono utiliza `SimpleAsyncTaskExecutor` com Virtual Threads e limite de concorrência configurado em 64 tarefas.
+
+Os eventos são internos à própria aplicação. Não há Kafka, RabbitMQ ou outro broker distribuído implementado no projeto.
+
+O registro `payment_events` também não caracteriza Event Sourcing; ele funciona como registro dos eventos relacionados ao fluxo de pagamento e suporte ao processamento assíncrono.
 
 ## API
 
-### POST /payments
+### Criar pagamento
 
 ```http
 POST /payments
@@ -49,7 +244,7 @@ Idempotency-Key: payment-key-123
 }
 ```
 
-Resposta resumida:
+Resposta inicial:
 
 ```json
 {
@@ -61,81 +256,97 @@ Resposta resumida:
 }
 ```
 
-### GET /payments/{id}
+### Buscar pagamento por ID
 
-Resposta resumida:
-
-```json
-{
-  "id": "...",
-  "customerId": "customer-123",
-  "amount": 55.00,
-  "status": "APPROVED",
-  "createdAt": "...Z"
-}
+```http
+GET /payments/{id}
 ```
 
-### GET /customers/{customerId}/payments
+A consulta retorna os dados do pagamento, incluindo seu status atual.
 
-Resposta resumida:
+### Buscar pagamentos por cliente
 
-```json
-{
-  "content": [
-    {
-      "id": "...",
-      "customerId": "customer-123",
-      "amount": 55.00,
-      "status": "APPROVED"
-    }
-  ],
-  "pageable": {
-    "pageNumber": 0,
-    "pageSize": 10
-  }
-}
+```http
+GET /customers/{customerId}/payments
 ```
 
-## Idempotência e Concorrência
+A consulta utiliza paginação do Spring Data. Exemplo:
 
-- `Idempotency-Key` no header da requisição evita duplicação de criação.
-- A tabela `idempotency_keys` usa `constraint UNIQUE` na chave de idempotência.
-- O fluxo usa `INSERT ... ON CONFLICT DO NOTHING` para garantir que somente uma requisição registre a chave.
-- A proteção transacional é feita com `@Transactional(isolation = Isolation.SERIALIZABLE)` e locks pessimistas em pontos críticos.
-- O teste `ConcurrentPaymentCreationTest` executa 100 requisições concorrentes com a mesma chave e foi validado com sucesso:
-  `Tests run: 1, Failures: 0, Errors: 0`
-  `BUILD SUCCESS`
+```http
+GET /customers/customer-123/payments?page=0&size=10&sort=createdAt,desc
+```
 
-## Processamento Assíncrono
+## Banco de dados
 
-`POST` cria o pagamento com status `PENDING`. O evento de domínio é persistido e publicado após o commit da transação. Em `AFTER_COMMIT`, o listener assíncrono processa o pagamento e define o estado final como `APPROVED` ou `REJECTED`. O executor usa `Virtual Threads`.
+O banco principal é PostgreSQL 16.
 
-## Banco de Dados
+O schema é versionado pelo Flyway. As migrations atuais criam as principais estruturas:
 
-- PostgreSQL
-- JPA/Hibernate
-- Flyway
-- `payments`
-- `idempotency_keys`
-- `payment_events`
+```text
+payments
+idempotency_keys
+payment_events
+```
+
+As migrations ficam em:
+
+```text
+src/main/resources/db/migration/
+```
 
 ## Testes
 
-- Unitários
-- Integração
-- Concorrência
-- Testcontainers
+O projeto possui diferentes níveis de testes, incluindo:
 
-## Como executar
+- testes unitários;
+- testes de controllers;
+- testes de domínio;
+- testes de serviços;
+- testes de repositórios;
+- testes de integração;
+- teste de concorrência com 100 requisições;
+- testes com PostgreSQL real utilizando Testcontainers;
+- testes assíncronos utilizando Awaitility.
+
+Para executar a suíte:
+
+```bash
+./mvnw test
+```
+
+Para uma validação completa do projeto:
+
+```bash
+./mvnw clean verify
+```
+
+## Como executar localmente
+
+### Pré-requisitos
+
+- Java 21
+- Docker
+- Docker Compose
+
+### 1. Subir o PostgreSQL
 
 ```bash
 docker compose up -d
-./mvnw spring-boot:run
-./mvnw test
-docker compose down
 ```
 
-Exemplo curto de curl:
+### 2. Executar a aplicação
+
+```bash
+./mvnw spring-boot:run
+```
+
+A API fica disponível em:
+
+```text
+http://localhost:8080
+```
+
+### 3. Criar um pagamento
 
 ```bash
 curl -X POST http://localhost:8080/payments \
@@ -144,18 +355,34 @@ curl -X POST http://localhost:8080/payments \
   -d '{"customerId":"customer-123","amount":55.00}'
 ```
 
+### 4. Encerrar o ambiente
+
+```bash
+docker compose down
+```
+
 ## Timezone
 
-O projeto usa `java.time.Instant` e define UTC na configuração para manter consistência dos timestamps entre persistência e resposta da API. Essa escolha mantém dados temporais estáveis e previsíveis em todos os fluxos.
+A aplicação utiliza `java.time.Instant` para representar timestamps e configura UTC como timezone da aplicação. Isso mantém os valores temporais consistentes entre persistência e respostas da API.
 
 ## Limitações e possíveis evoluções
 
-- Kafka
-- Redis
-- observabilidade
-- rate limiting
-- circuit breaker
+O projeto demonstra os mecanismos centrais do desafio, mas não implementa uma arquitetura completa de produção para todos os cenários de escala e resiliência.
+
+Possíveis evoluções:
+
+- política robusta de retry e tratamento de falhas assíncronas;
+- Dead Letter Queue (DLQ);
+- Outbox Pattern para garantir publicação confiável de eventos;
+- observabilidade com métricas, tracing e dashboards;
+- rate limiting;
+- circuit breaker;
+- Kafka ou outro broker distribuído, caso o domínio exija mensageria externa;
+- Redis ou outro mecanismo de cache, caso métricas indiquem necessidade;
+- evolução da separação Command/Query para uma implementação CQRS mais completa, se houver necessidade real.
 
 ## Status
 
-O núcleo do desafio técnico está implementado e validado: idempotência, concorrência, processamento assíncrono, PostgreSQL e testes automatizados. O projeto demonstra um fluxo real de criação e consulta de pagamentos com estabilidade sob carga concorrente.
+O projeto possui uma implementação funcional de API REST para pagamentos, com idempotência baseada em banco, controle de concorrência, processamento assíncrono, persistência de eventos, PostgreSQL, Flyway, Docker e testes automatizados.
+
+O foco atual está nos fundamentos de consistência, concorrência e processamento assíncrono, sem adicionar componentes distribuídos que não sejam necessários para o escopo atual.
