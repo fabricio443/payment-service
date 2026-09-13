@@ -38,40 +38,41 @@ O projeto foi desenvolvido para demonstrar, de forma prática:
 A aplicação organiza o fluxo principal entre controllers, camada de aplicação, serviços especializados, repositórios, domínio e eventos.
 
 ```text
-HTTP
- │
- ▼
-Controllers
- │
- ├───────────────┐
- ▼               ▼
-Command          Query
-Application      Application
- │               │
- ▼               ▼
-Serviços         Repository
-especializados      │
- │                  ▼
- ▼              PostgreSQL
-Repository
- │
- ▼
-PostgreSQL
- │
- ▼
-Eventos
- │
- ▼
-AFTER_COMMIT
- │
- ▼
-Listener assíncrono
- │
- ▼
-PaymentProcessorService
- │
- ▼
-APPROVED / REJECTED
+                    HTTP
+                     │
+                     ▼
+              ┌─────────────┐
+              │ Controllers │
+              └──────┬──────┘
+                     │
+             ┌───────┴───────┐
+             ▼               ▼
+       Command App       Query App
+             │               │
+             ▼               ▼
+     Serviços específicos  Repository
+             │               │
+             ▼               ▼
+         Repository      PostgreSQL
+             │
+             ▼
+         PostgreSQL
+             │
+             ▼
+       PaymentEvent
+             │
+             ▼
+        AFTER_COMMIT
+             │
+             ▼
+       Async Listener
+             │
+             ▼
+   PaymentProcessorService
+             │
+        ┌────┴────┐
+        ▼         ▼
+    APPROVED   REJECTED
 ```
 
 ### Command e Query
@@ -159,7 +160,7 @@ IdempotencyService
       │                       ▼
       │               APPROVED / REJECTED
       │
-      └── chave existente ──► reutiliza o resultado registrado
+      └── chave existente ──► recupera o pagamento associado à chave
 ```
 
 O controller retorna `201 Created` após a criação bem-sucedida do pagamento.
@@ -176,7 +177,9 @@ O mecanismo utiliza:
 - `INSERT ... ON CONFLICT DO NOTHING` para disputar atomicamente o registro da chave;
 - transação com isolamento `SERIALIZABLE` no fluxo de idempotência;
 - lock pessimista (`PESSIMISTIC_WRITE`) nos pontos críticos de leitura da chave;
-- persistência do `response_body`, `status_code` e `payment_id` para reutilização do resultado da operação.
+- persistência de `response_body`, `status_code` e `payment_id` associados à chave de idempotência.
+
+Nas requisições subsequentes, o pagamento é recuperado pelo `payment_id` persistido na chave de idempotência e convertido novamente para `PaymentResponse`.
 
 Isso permite que múltiplas requisições concorrentes com a mesma chave disputem o mesmo registro no banco, evitando a criação de múltiplos pagamentos para a mesma operação.
 
@@ -189,7 +192,8 @@ O teste verifica principalmente:
 - ausência de respostas HTTP `500`;
 - existência de apenas um pagamento persistido;
 - existência de um único registro de idempotência;
-- associação da chave ao pagamento criado.
+- associação da chave ao pagamento criado;
+- respostas com status HTTP `200` ou `201`.
 
 O teste é executado como teste de integração e utiliza PostgreSQL fornecido pelo Testcontainers.
 
